@@ -4,9 +4,6 @@ from collections import defaultdict
 from abc import abstractmethod
 from pprint import pprint
 import itertools
-import numpy as np
-
-from colorama import Fore, Back, Style
 
 
 class Direction(enum.Enum):
@@ -67,12 +64,12 @@ class Tower(Cell):
             ordered = sorted(distances, key=lambda e: (e[1], e[0].identifier))
             self.target = ordered[0][0]
             self.state = TowerState.Locked
-            print("Tower #{}: Locked on target in range {}".format(hash(self), ordered[0][1]))
+            # print("Tower #{}: Locked on target in range {}".format(hash(self), ordered[0][1]))
         else:
             # nothing to lock
             self.target = None
             self.state = TowerState.Seeking
-            print("Tower #{}: No target found".format(hash(self)))
+            # print("Tower #{}: No target found".format(hash(self)))
 
     def calculate_shot(self):
         if self.target:
@@ -80,7 +77,7 @@ class Tower(Cell):
             target_out_of_range = self.position_to_alien(self.target) > self.towerrange
             if not self.target.alive() or target_out_of_range:
                 self.state = TowerState.Seeking
-                print("Tower #{}: Target dead or out of range, removed.".format(hash(self)))
+                # print("Tower #{}: Target dead or out of range, removed.".format(hash(self)))
 
         if self.state == TowerState.Seeking:
             self.lock_on_new_alien()
@@ -94,11 +91,7 @@ class Tower(Cell):
         target.get_shot_by(self)
 
     def position_to_alien(self, alien):
-        a = np.array([self.x, self.y])
-        # b = np.array([alien.x, alien.y])
-        b = np.array([alien.xexact, alien.yexact])
-        norm = np.linalg.norm(a - b)
-        return norm
+        return math.sqrt(math.pow(self.x - alien.x, 2) + math.pow(self.y - alien.y, 2))
 
 
 class Alien(Cell):
@@ -110,6 +103,8 @@ class Alien(Cell):
         self.sequence = sequence
         self.health = health
         self.speed = speed
+
+        self.tried_moving_to_base = False
 
         # internal offset
         # self.dx = 0.0
@@ -133,7 +128,7 @@ class Alien(Cell):
 
     def get_shot_by(self, tower):
         self.health -= tower.damage
-        print("Alien {} got damage {}. New health {}".format(self.identifier, tower.damage, self.health))
+        # print("Alien {} got damage {}. New health {}".format(self.identifier, tower.damage, self.health))
 
     def exact_position(self):
         return self.direction.move(self.x, self.y, speed=self.seq_old)
@@ -147,6 +142,7 @@ class Alien(Cell):
 
             # abort if there are no commands left
             if self.si >= len(self.sequence):
+                self.tried_moving_to_base = True
                 return
 
             action, ntimes = self.sequence[self.si]
@@ -170,8 +166,8 @@ class Alien(Cell):
                 # forward move costs tick
                 i += 1
 
-    def reached_base(self):
-        return self.si == len(self.sequence)
+    def would_reach_base(self):
+        return self.tried_moving_to_base
 
     def move(self):
         xnew, ynew = self.direction.move(self.x, self.y, speed=1)
@@ -206,8 +202,16 @@ class Maze(object):
         self.grid[tower.x][tower.y].append(tower)
 
     def update_aliens(self):
+        dead_aliens = []
         for alien in self.aliens.values():
-            alien.step()
+            if alien.alive():
+                alien.step()
+            else:
+                dead_aliens.append(alien)
+
+        # remove dead aliens
+        for dead in dead_aliens:
+            del self.aliens[dead.identifier]
 
         self.tick += 1
 
@@ -228,7 +232,7 @@ class Maze(object):
 
         for alien in self.aliens.values():
             # any alien reached the base?
-            if alien.reached_base():
+            if alien.would_reach_base():
                 reached_base = True
                 break
 
@@ -250,28 +254,6 @@ class Maze(object):
         self.grid[xnew][ynew].append(a)
         a.x = xnew
         a.y = ynew
-
-    def __str__(self, highlight=None):
-        result = "Tick #{}".format(self.tick)
-        result += '\n'
-        for x in range(self.height):
-            for y in range(self.width):
-                cell = self.grid[x][y]
-
-                # cell colors
-                color = f'{Fore.LIGHTWHITE_EX}'
-                if len(cell) == 0:
-                    color = f'{Fore.LIGHTBLUE_EX}'
-                elif any(isinstance(e, Alien) for e in cell):
-                    color = f'{Fore.LIGHTRED_EX}'
-
-                # possible highlight
-                candidate = str(cell[0]) if len(cell) > 0 else "."
-                result += color + candidate if not highlight or candidate not in highlight else f'{Back.RED}X'
-                result += f'{Style.RESET_ALL}'
-
-            result += '\n'
-        return result
 
 
 def main(data):
@@ -302,8 +284,13 @@ def main(data):
     result = "TIE"
     tick = 0
 
+    spawned_aliens = 0
+
     # simulate game
     while True:
+
+        if tick % 100 == 0:
+            print(tick)
 
         # 1) update all alien positions
         maze.update_aliens()
@@ -319,6 +306,7 @@ def main(data):
         if tick in aliens.keys():
             for alien in aliens[tick]:
                 maze.add_alien(alien)
+                spawned_aliens += 1
 
         # 4) simulate tower shots
         if tick > 0:
@@ -328,7 +316,7 @@ def main(data):
         all_dead = maze.all_aliens_dead()
 
         # 6) check if all aliens are dead and no more will be spawning
-        no_more_spawning = len(maze.aliens) == num_aliens
+        no_more_spawning = spawned_aliens == num_aliens
         if no_more_spawning and all_dead:
             result = "WIN"
             print("All aliens are dead at tick {}".format(tick))

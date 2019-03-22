@@ -56,7 +56,7 @@ def parse(lines):
 
 
 if __name__ == "__main__":
-    level, quests = 4, 1
+    level, quests = 4, 5
     for i in range(1, quests + 1):
         input_file = r'..\data\level{0}\level{0}_{1}.in'.format(level, i)
         output_file = os.path.splitext(input_file)[0] + ".out"
