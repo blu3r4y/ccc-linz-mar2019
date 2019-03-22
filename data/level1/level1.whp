@@ -1,0 +1,4 @@
+$x $y
+$cmd{*}
+
+$$cmd = $command $steps
