@@ -1,25 +1,34 @@
 import os
-import json
 
 from main import main
 from pprint import pprint
 
 
 def parse(lines):
-    x = int(lines[0].split()[0])
-    y = int(lines[0].split()[1])
+    # world bounds
+    wx = int(lines[0].split()[0])
+    wy = int(lines[0].split()[0])
+
+    # initial position
+    x = int(lines[1].split()[0])
+    y = int(lines[1].split()[1])
     cmds = []
 
-    it = iter(lines[1].split())
+    # command / step pair
+    it = iter(lines[2].split())
     for e in it:
         cmds.append((e, int(next(it))))
 
-    return {"x": x, "y": y, "cmds": cmds}
+    return {
+        "wx": wx, "wy": wy,
+        "x": x, "y": y,
+        "cmds": cmds
+    }
 
 
 if __name__ == "__main__":
-    level, quests = 1, 6
-    for i in range(1, quests):
+    level, quests = 2, 5
+    for i in range(0, quests + 1):
         input_file = r'..\data\level{0}\level{0}_{1}.in'.format(level, i)
         output_file = os.path.splitext(input_file)[0] + ".out"
 
@@ -27,7 +36,7 @@ if __name__ == "__main__":
             data = parse(fi.readlines())
             # pprint(data)
 
-            print("=== Input {}".format(i))
+            print("=== Output {}".format(i))
             print("======================")
 
             result = main(data)

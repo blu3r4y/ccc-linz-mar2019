@@ -23,10 +23,15 @@ class Direction(enum.Enum):
 
 def main(data):
     x, y, d = data["x"], data["y"], Direction.Right
-    for command, ntimes in data["cmds"]:
-        if command == "F":
-            x, y = d.move(x, y, ntimes)
-        elif command == "T":
-            d = d.turn(ntimes)
 
-    return "{} {}".format(x, y)
+    visited = [(x, y)]
+
+    for command, ntimes in data["cmds"]:
+        for i in range(ntimes):
+            if command == "F":
+                x, y = d.move(x, y)
+                visited.append((x, y))
+            elif command == "T":
+                d = d.turn()
+
+    return "\n".join(["{} {}".format(x, y) for x, y in visited])
